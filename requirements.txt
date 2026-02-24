@@ -1,0 +1,8 @@
+aiogram
+aiohttp
+python-dotenv
+apscheduler
+pydantic
+sqlalchemy
+asyncpg
+aiosqlite
