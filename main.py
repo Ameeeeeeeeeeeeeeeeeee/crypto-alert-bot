@@ -13,13 +13,29 @@ from dotenv import load_dotenv
 from bot.handlers import router as main_router
 from database.db import init_db, add_user
 from services.alerts import setup_scheduler
+from aiohttp import web
 
 load_dotenv()
 
 TOKEN = getenv("BOT_TOKEN")
+PORT = int(getenv("PORT", 8080))
 
 dp = Dispatcher()
 dp.include_router(main_router)
+
+# --- Dummy Web Server for Render Free Tier ---
+async def handle_ping(request):
+    return web.Response(text="Bot is alive!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    logging.info(f"Web server started on port {PORT}")
+# ---------------------------------------------
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -52,9 +68,15 @@ async def main() -> None:
     # Setup background alerts
     setup_scheduler(bot)
     
+    # Start the dummy web server
+    asyncio.create_task(start_web_server())
+    
     await set_commands(bot)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped!")
