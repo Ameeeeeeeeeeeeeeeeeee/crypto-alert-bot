@@ -19,6 +19,7 @@ async def update_bot_metadata():
         "🔔 Price Alerts: Set targets for your favorite tokens and get notified!\n"
         "👥 Group Ready: Add me to your group and just type 'price btc' for instant updates.\n"
         "💎 Premium Features: Upgrade for unlimited alerts and pro tracking.\n\n"
+        "🚀 Created by @ame_kt\n\n"
         "How to use:\n"
         "1. Type /search <coin> to find a token.\n"
         "2. Click 'Alert Above' or 'Alert Below' to track it.\n"

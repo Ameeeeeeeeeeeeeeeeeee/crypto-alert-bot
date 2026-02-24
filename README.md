@@ -1,5 +1,7 @@
 # 🚀 Crypto Analytics & Alert Bot
 
+### Created by [@ame_kt](https://t.me/ame_kt)
+
 A professional Telegram bot built with Python and Aiogram to provide real-time cryptocurrency analytics and custom price alerts for decentralized exchanges.
 
 ## ✨ Key Features
