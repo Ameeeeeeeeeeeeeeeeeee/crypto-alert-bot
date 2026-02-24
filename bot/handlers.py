@@ -126,15 +126,19 @@ async def help_handler(message: Message):
     )
     await message.answer(help_text)
 
-@router.message(F.text.lower().startswith("price "))
-async def quick_price_handler(message: Message):
-    """Handler for 'price <coin>' format, works in groups."""
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
+@router.message(F.text.lower().regexp(r'^(/?price|/search)\s+(\w+)'))
+async def flexible_price_handler(message: Message):
+    """Flexible handler for 'price btc', '/price btc', or '/search btc'. Works better in groups."""
+    logging.info(f"Received message in {message.chat.type}: {message.text}")
+    
+    # Extract the coin name (the second part of the match)
+    import re
+    match = re.search(r'(/?price|/search)\s+(\w+)', message.text.lower())
+    if not match:
         return
-
-    query = parts[1]
-    msg = await message.answer(f"🔍 Checking price for <b>{query}</b>...")
+        
+    query = match.group(2)
+    msg = await message.answer(f"🔍 Checking <b>{query.upper()}</b>...")
 
     pair_data = await CryptoAPI.search_coin(query)
     if pair_data:
@@ -148,7 +152,7 @@ async def quick_price_handler(message: Message):
             disable_web_page_preview=True
         )
     else:
-        await msg.edit_text(f"❌ Could not find data for <b>{query}</b>.")
+        await msg.edit_text(f"❌ No data found for <b>{query.upper()}</b>.")
 
 @router.callback_query(F.data == "upgrade_premium")
 async def upgrade_callback(callback: CallbackQuery):
