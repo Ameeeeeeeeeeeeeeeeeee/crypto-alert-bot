@@ -11,9 +11,11 @@ load_dotenv()
 
 # Use DATABASE_URL if available (Render), fallback to SQLite locally
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    # Render's DATABASE_URL might use postgres://, but asyncpg needs postgresql+asyncpg://
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 else:
     # Local SQLite
     DATABASE_URL = "sqlite+aiosqlite:///./database/bot.db"
