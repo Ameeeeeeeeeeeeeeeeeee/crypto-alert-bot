@@ -121,9 +121,34 @@ async def help_handler(message: Message):
         "/start - Start the bot\n"
         "/search &lt;coin&gt; - Get live price\n"
         "/alerts - Manage your alerts\n"
-        "/help - Show this help"
+        "/help - Show this help\n\n"
+        "💡 <b>Tip:</b> You can also just type <code>price btc</code> in any chat!"
     )
     await message.answer(help_text)
+
+@router.message(F.text.lower().startswith("price "))
+async def quick_price_handler(message: Message):
+    """Handler for 'price <coin>' format, works in groups."""
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        return
+
+    query = parts[1]
+    msg = await message.answer(f"🔍 Checking price for <b>{query}</b>...")
+
+    pair_data = await CryptoAPI.search_coin(query)
+    if pair_data:
+        text = CryptoAPI.format_coin_info(pair_data)
+        symbol = pair_data.get("baseToken", {}).get("symbol", "COIN")
+        price = pair_data.get("priceUsd", "0")
+
+        await msg.edit_text(
+            text,
+            reply_markup=get_alert_type_keyboard(symbol, price),
+            disable_web_page_preview=True
+        )
+    else:
+        await msg.edit_text(f"❌ Could not find data for <b>{query}</b>.")
 
 @router.callback_query(F.data == "upgrade_premium")
 async def upgrade_callback(callback: CallbackQuery):
