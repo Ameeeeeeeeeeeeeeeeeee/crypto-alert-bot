@@ -1,16 +1,6 @@
+import asyncio
 import aiohttp
 import logging
-
-# Reuse a single session for speed
-_session: aiohttp.ClientSession | None = None
-
-async def get_session():
-    global _session
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=10)
-        )
-    return _session
 
 class CryptoAPI:
     BASE_URL = "https://api.dexscreener.com/latest/dex/search"
@@ -19,17 +9,23 @@ class CryptoAPI:
     async def search_coin(cls, query: str):
         url = f"{cls.BASE_URL}?q={query}"
         try:
-            session = await get_session()
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    pairs = data.get("pairs", [])
-                    if not pairs:
+            # Create a fresh session each call to avoid event loop issues on cloud platforms
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=15)
+            ) as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        pairs = data.get("pairs", [])
+                        if not pairs:
+                            return None
+                        return pairs[0]
+                    else:
+                        logging.error(f"DexScreener API error: {response.status}")
                         return None
-                    return pairs[0]
-                else:
-                    logging.error(f"DexScreener API error: {response.status}")
-                    return None
+        except asyncio.TimeoutError:
+            logging.error(f"DexScreener API timeout for query: {query}")
+            return None
         except Exception as e:
             logging.error(f"Failed to fetch data from DexScreener: {e}")
             return None

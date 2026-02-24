@@ -1,4 +1,6 @@
 from aiogram import Router, F
+import logging
+import re
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -23,7 +25,13 @@ async def search_coin_handler(message: Message):
     query = args[1]
     msg = await message.answer(f"🔍 Searching for <b>{query}</b>...")
 
-    pair_data = await CryptoAPI.search_coin(query)
+    try:
+        pair_data = await CryptoAPI.search_coin(query)
+    except Exception as e:
+        logging.error(f"Search error: {e}")
+        await msg.edit_text("❌ An error occurred while searching. Please try again.")
+        return
+
     if pair_data:
         text = CryptoAPI.format_coin_info(pair_data)
         
@@ -131,21 +139,32 @@ async def help_handler(message: Message):
     )
     await message.answer(help_text)
 
-@router.message(F.text.lower().regexp(r'^(/?price|/search)\s+(\w+)'))
+@router.message(F.text)
 async def flexible_price_handler(message: Message):
-    """Flexible handler for 'price btc', '/price btc', or '/search btc'. Works better in groups."""
-    logging.info(f"Received message in {message.chat.type}: {message.text}")
+    """Handles 'price btc' style messages. Only triggers for non-command text."""
+    if not message.text:
+        return
     
-    # Extract the coin name (the second part of the match)
-    import re
-    match = re.search(r'(/?price|/search)\s+(\w+)', message.text.lower())
+    # Skip if it's a command that should be handled by other handlers
+    if message.text.startswith("/"):
+        return
+    
+    # Only match "price <coin>" pattern
+    match = re.search(r'^price\s+(\w+)', message.text.strip().lower())
     if not match:
         return
         
-    query = match.group(2)
+    query = match.group(1)
+    logging.info(f"Flexible price lookup in {message.chat.type}: {query}")
     msg = await message.answer(f"🔍 Checking <b>{query.upper()}</b>...")
 
-    pair_data = await CryptoAPI.search_coin(query)
+    try:
+        pair_data = await CryptoAPI.search_coin(query)
+    except Exception as e:
+        logging.error(f"Price lookup error: {e}")
+        await msg.edit_text("❌ An error occurred. Please try again.")
+        return
+
     if pair_data:
         text = CryptoAPI.format_coin_info(pair_data)
         

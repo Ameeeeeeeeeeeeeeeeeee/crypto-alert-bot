@@ -1,40 +1,46 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, Float, DateTime, ForeignKey
 from sqlalchemy.future import select
 from sqlalchemy import delete
 import datetime
 import os
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Use DATABASE_URL if available (Render), fallback to SQLite locally
 DATABASE_URL = os.getenv("DATABASE_URL")
+
 if DATABASE_URL:
+    # SQLAlchemy requires 'postgresql+asyncpg://' for async postgres
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
     elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    
+    logging.info(f"Using PostgreSQL database")
+    engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 else:
-    # Local SQLite
     DATABASE_URL = "sqlite+aiosqlite:///./database/bot.db"
+    logging.info("Using local SQLite database")
+    engine = create_async_engine(DATABASE_URL, echo=False)
 
-engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
-    user_id = Column(Integer, primary_key=True)
-    username = Column(String)
+    user_id = Column(BigInteger, primary_key=True)  # Telegram IDs can exceed 32-bit int
+    username = Column(String, nullable=True)
     is_premium = Column(Boolean, default=False)
     joined_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Alert(Base):
     __tablename__ = "alerts"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
+    user_id = Column(BigInteger, ForeignKey("users.user_id"))  # Match BigInteger
     coin_id = Column(String)
     symbol = Column(String)
     target_price = Column(Float)
@@ -76,7 +82,6 @@ async def get_all_alerts():
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Alert))
         alerts = result.scalars().all()
-        # Convert to tuple format to match previous implementation
         return [(a.id, a.user_id, a.coin_id, a.symbol, a.target_price, a.condition, a.created_at) for a in alerts]
 
 async def get_user_alerts(user_id: int):

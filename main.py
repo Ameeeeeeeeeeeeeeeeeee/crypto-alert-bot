@@ -15,6 +15,9 @@ from database.db import init_db, add_user
 from services.alerts import setup_scheduler
 from aiohttp import web
 
+# Configure logging FIRST so all modules can use it
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+
 load_dotenv()
 
 TOKEN = getenv("BOT_TOKEN")
@@ -23,19 +26,23 @@ PORT = int(getenv("PORT", 8080))
 dp = Dispatcher()
 dp.include_router(main_router)
 
-# --- Dummy Web Server for Render Free Tier ---
+# --- Web Server for Render (keeps service alive) ---
 async def handle_ping(request):
     return web.Response(text="Bot is alive!")
+
+async def handle_health(request):
+    return web.Response(text="OK", status=200)
 
 async def start_web_server():
     app = web.Application()
     app.router.add_get("/", handle_ping)
+    app.router.add_get("/health", handle_health)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
-    logging.info(f"Web server started on port {PORT}")
-# ---------------------------------------------
+    logging.info(f"✅ Web server started on port {PORT}")
+# ---------------------------------------------------
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -60,22 +67,31 @@ async def set_commands(bot: Bot):
     await bot.set_my_commands(commands)
 
 async def main() -> None:
+    if not TOKEN:
+        logging.error("❌ BOT_TOKEN environment variable is not set!")
+        sys.exit(1)
+
     # Initialize DB
-    await init_db()
+    try:
+        await init_db()
+        logging.info("✅ Database initialized successfully.")
+    except Exception as e:
+        logging.error(f"❌ Failed to initialize database: {e}")
+        sys.exit(1)
     
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     
     # Setup background alerts
     setup_scheduler(bot)
     
-    # Start the dummy web server
-    asyncio.create_task(start_web_server())
+    # Start the web server FIRST (Render needs the port bound quickly)
+    await start_web_server()
     
     await set_commands(bot)
+    logging.info("🤖 Bot is starting polling...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
