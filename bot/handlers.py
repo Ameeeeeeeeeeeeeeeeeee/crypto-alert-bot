@@ -26,12 +26,17 @@ async def search_coin_handler(message: Message):
     pair_data = await CryptoAPI.search_coin(query)
     if pair_data:
         text = CryptoAPI.format_coin_info(pair_data)
-        symbol = pair_data.get("baseToken", {}).get("symbol", "COIN")
-        price = pair_data.get("priceUsd", "0")
+        
+        # Only show alert buttons in private chat
+        keyboard = None
+        if message.chat.type == "private":
+            symbol = pair_data.get("baseToken", {}).get("symbol", "COIN")
+            price = pair_data.get("priceUsd", "0")
+            keyboard = get_alert_type_keyboard(symbol, price)
 
         await msg.edit_text(
             text,
-            reply_markup=get_alert_type_keyboard(symbol, price),
+            reply_markup=keyboard,
             disable_web_page_preview=True
         )
     else:
@@ -143,12 +148,17 @@ async def flexible_price_handler(message: Message):
     pair_data = await CryptoAPI.search_coin(query)
     if pair_data:
         text = CryptoAPI.format_coin_info(pair_data)
-        symbol = pair_data.get("baseToken", {}).get("symbol", "COIN")
-        price = pair_data.get("priceUsd", "0")
+        
+        # Only show alert buttons in private chat
+        keyboard = None
+        if message.chat.type == "private":
+            symbol = pair_data.get("baseToken", {}).get("symbol", "COIN")
+            price = pair_data.get("priceUsd", "0")
+            keyboard = get_alert_type_keyboard(symbol, price)
 
         await msg.edit_text(
             text,
-            reply_markup=get_alert_type_keyboard(symbol, price),
+            reply_markup=keyboard,
             disable_web_page_preview=True
         )
     else:
